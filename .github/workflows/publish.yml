@@ -1,0 +1,61 @@
+# Publish dsh-mijia-sidebar to npm from a GitHub Release.
+#
+# Authentication is npm "trusted publishing" (OIDC): no NPM_TOKEN secret and no
+# one-time password, because GitHub hands npm a short-lived identity token.
+# One-time setup on npmjs.com: package dsh-mijia-sidebar → Settings → Trusted
+# Publisher → GitHub, repository EchoChan314/dsh-mijia-sidebar, workflow file
+# `publish.yml` (leave the environment field empty).
+#
+# Trigger it by publishing a GitHub Release, or manually from the Actions tab.
+# The registry is pinned in package.json (`publishConfig`), so a mirror
+# configured on the machine cannot hijack the publish target.
+
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required: npm trusted publishing exchanges this for a publish grant
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (with npm >= 11.5.1 for trusted publishing)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Cheap re-verification: never publish a tree that does not pass on its own.
+      - name: Verify the tree
+        run: |
+          node --check lib/index.js
+          node --check lib/client.js
+          node --check lib/parse.js
+          node --test
+          python -m compileall -q lib
+          python -m unittest discover -s tests -p "*_test.py"
+
+      # Idempotent: re-running a release workflow (or dispatching it twice) must
+      # not fail on an already-published version.
+      - name: Publish (no-op when the version is already on the registry)
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "dsh-mijia-sidebar@$version" version >/dev/null 2>&1; then
+            echo "dsh-mijia-sidebar@$version is already published — nothing to publish."
+            exit 0
+          fi
+          npm publish --provenance --access public

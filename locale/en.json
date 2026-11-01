@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Mijia Control",
+    "description": "One-click Mijia smart home control in the sidebar: devices, properties and scenes straight from the local mijiaAPI CLI — no model round-trip."
+  }
+}

@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# build / test artifacts
+coverage/
+__pycache__/
+*.py[cod]
+pytest-cache-files-*/
+*.log
+*.log.1
+
+# editor / OS
+.DS_Store
+Thumbs.db
+*.swp

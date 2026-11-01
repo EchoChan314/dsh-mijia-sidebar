@@ -1,0 +1,71 @@
+# CI for dsh-mijia-sidebar.
+# Everything here is offline and credential-free: the node tests use a fake
+# plugin context and a made-up interpreter path, the python tests stub the
+# third-party packages, so no step needs mijiaAPI, requests or a Mijia account.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: host half + python helper
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax-check the JavaScript
+        run: |
+          node --check lib/index.js
+          node --check lib/client.js
+          node --check lib/parse.js
+
+      # Linux spawns children freely, so the default per-file isolation is fine
+      # here. A Windows sandbox that denies pipe-backed child processes needs
+      # `node --test --test-isolation=none` instead (see tests/README.md).
+      # No path argument: Node 22 does not expand a bare directory argument.
+      - name: Run the host-half tests
+        run: node --test
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Compile-check the python helper
+        run: python -m compileall -q lib
+
+      - name: Run the python helper tests
+        run: python -m unittest discover -s tests -p "*_test.py"
+
+      - name: Validate the JSON files
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const files = [
+              "package.json",
+              ...fs
+                .readdirSync("locale")
+                .filter((name) => name.endsWith(".json"))
+                .map((name) => "locale/" + name),
+            ];
+            for (const file of files) {
+              const value = JSON.parse(fs.readFileSync(file, "utf8"));
+              if (!value || typeof value !== "object" || Array.isArray(value)) {
+                throw new Error(file + " is not a JSON object");
+              }
+              console.log("ok", file);
+            }
+          '

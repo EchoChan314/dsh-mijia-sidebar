@@ -1,0 +1,6 @@
+# dsh-mijia-sidebar bundle patch: one row that is both the host plugin
+# (node half, package main -> lib/index.js) and the browser roster entry
+# (dsh.client declaration -> lib/client.js).
+- insert:
+    - id: dsh-mijia-sidebar
+      name: 'dsh-mijia-sidebar'
